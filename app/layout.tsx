@@ -5,8 +5,11 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Minitrade.ai - The Ultimate Trading Journal",
-  description: "Master your psychology and elevate your trading.",
+  title: "MiniFxBook - The Ultimate Trading Journal",
+  description: "Log your trades, analyze your performance, and master your trading psychology.",
+  icons: {
+    icon: '/icon.png', // Ye line ensure karegi ki naya logo load ho
+  },
 };
 
 export default function RootLayout({

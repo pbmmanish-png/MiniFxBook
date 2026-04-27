@@ -9,6 +9,7 @@ import { LineChart, Mail, Lock, ArrowRight, AlertCircle, Loader2, User, Target }
 export default function AuthPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false); // Nayi state forgot password ke liye
   
   // States for form fields
   const [email, setEmail] = useState('');
@@ -28,7 +29,17 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        // Handle Forgot Password
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          // Redirect URL setup (apne project ka live URL ya localhost yahan dal sakte hain)
+          redirectTo: `${window.location.origin}/update-password`,
+        });
+        if (error) throw error;
+        
+        setMessage('Password reset link sent! Please check your email.');
+        
+      } else if (isLogin) {
         // Handle Login
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -70,26 +81,33 @@ export default function AuthPage() {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-blue-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link href="/" className="inline-flex items-center gap-2 mb-6 hover:opacity-80 transition-opacity">
-          <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md">
-            <LineChart className="w-8 h-8"/>
-          </div>
+          {/* Logo updated to use image instead of icon (Bug 8 Fix applied here as well) */}
+          <img src="/logo3.png" alt="Minitrade Logo" className="w-8 h-8 object-contain" />
           <span className="text-3xl font-bold tracking-tight text-slate-900">
-            Minitrade<span className="text-blue-600 font-black">.ai</span>
+            MiniFxBook<span className="text-blue-600 font-black">+</span>
           </span>
         </Link>
         <h2 className="mt-2 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
-          {isLogin ? 'Sign in to your account' : 'Start your trading journey'}
+          {isForgotPassword 
+            ? 'Reset your password' 
+            : isLogin 
+              ? 'Sign in to your account' 
+              : 'Start your trading journey'}
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-500">
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
-            type="button"
-            onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }} 
-            className="font-bold text-blue-600 hover:text-blue-500 transition-colors"
-          >
-            {isLogin ? 'Sign up for free' : 'Log in here'}
-          </button>
-        </p>
+        
+        {/* Hide Signup/Login toggle when in Forgot Password mode */}
+        {!isForgotPassword && (
+          <p className="mt-2 text-center text-sm text-slate-500">
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button 
+              type="button"
+              onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }} 
+              className="font-bold text-blue-600 hover:text-blue-500 transition-colors"
+            >
+              {isLogin ? 'Sign up for free' : 'Log in here'}
+            </button>
+          </p>
+        )}
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -98,19 +116,19 @@ export default function AuthPage() {
             
             {/* Error & Success Messages */}
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex gap-3">
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex gap-3 animate-in fade-in">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0"/>
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
             {message && (
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md">
+              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md animate-in fade-in">
                 <p className="text-sm text-green-700 font-medium">{message}</p>
               </div>
             )}
 
-            {/* Extra Fields (Only show when Signing Up) */}
-            {!isLogin && (
+            {/* Extra Fields (Only show when Signing Up AND not in forgot password mode) */}
+            {!isLogin && !isForgotPassword && (
               <>
                 {/* Full Name Input */}
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
@@ -121,7 +139,7 @@ export default function AuthPage() {
                     </div>
                     <input
                       type="text"
-                      required={!isLogin}
+                      required={!isLogin && !isForgotPassword}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900 bg-slate-50 outline-none transition-all"
@@ -152,7 +170,7 @@ export default function AuthPage() {
               </>
             )}
 
-            {/* Email Input */}
+            {/* Email Input (Always Visible) */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Email address</label>
               <div className="relative mt-1 rounded-md shadow-sm">
@@ -169,28 +187,44 @@ export default function AuthPage() {
                 />
               </div>
             </div>
+            
 
-            {/* Password Input */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
-              <div className="relative mt-1 rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
+            {/* Password Input (Hidden in Forgot Password mode) */}
+            {!isForgotPassword && (
+              <div className="animate-in fade-in">
+                <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+                <div className="relative mt-1 rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    required={!isForgotPassword}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900 bg-slate-50 outline-none transition-all"
+                    placeholder="••••••••"
+                    minLength={6}
+                  />
                 </div>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900 bg-slate-50 outline-none transition-all"
-                  placeholder="••••••••"
-                  minLength={6}
-                />
+                
+                {/* Forgot Password Link (Only in Login mode) */}
+                {isLogin && (
+                  <div className="flex justify-end mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setIsForgotPassword(true); setError(null); setMessage(null); }}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Submit Button */}
-            <div>
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
@@ -200,12 +234,26 @@ export default function AuthPage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    {isLogin ? 'Sign In' : 'Create Account'} 
+                    {isForgotPassword ? 'Send Reset Link' : isLogin ? 'Sign In' : 'Create Account'} 
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </div>
+
+            {/* Back to Login Link (Only in Forgot Password mode) */}
+            {isForgotPassword && (
+              <div className="flex justify-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => { setIsForgotPassword(false); setError(null); setMessage(null); }}
+                  className="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  &larr; Back to login
+                </button>
+              </div>
+            )}
+            
           </form>
         </div>
       </div>

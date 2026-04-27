@@ -44,14 +44,16 @@ export default function UserProfileSidebar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-        <div className="w-10 h-10 bg-blue-100 rounded-full animate-pulse" />
+        {/* Spinner ki jagah aapka Pulse karta hua Logo */}
+        <div className="w-10 h-10 flex items-center justify-center shrink-0">
+          <img src="/logo3.png" className="w-8 h-8 object-contain animate-pulse" alt="loading" />
+        </div>
         <div className="space-y-1">
-          <div className="h-4 w-24 bg-slate-100 rounded animate-pulse" />
-          <div className="h-3 w-32 bg-slate-100 rounded animate-pulse" />
+          <div className="h-3 w-20 bg-slate-200 rounded animate-pulse" />
+          <div className="h-2 w-28 bg-slate-100 rounded animate-pulse" />
         </div>
       </div>
     );

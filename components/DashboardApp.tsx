@@ -21,6 +21,9 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'trades' | 'journal' | 'performance' | 'profile'>('dashboard');
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Filters State
+  const [perfTimeFilter, setPerfTimeFilter] = useState('All Time');
+  const [journalFilter, setJournalFilter] = useState('All'); // All, Journaled, Pending
   
   const [trades, setTrades] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -50,6 +53,22 @@ export default function DashboardPage() {
   const handleRemoveChecklist = (indexToRemove: number) => {
     setChecklist(checklist.filter((_, index) => index !== indexToRemove));
   };
+  const [profileName, setProfileName] = useState(''); // Fetch ke time isme user ka current name set kar lein
+
+  const handleUpdateName = async () => {
+    const { error } = await supabase.auth.updateUser({ data: { full_name: profileName } });
+    if (!error) alert("Profile Name Updated!");
+  };
+
+  // Profile UI me add karein (Jahan Display Settings hai, uske theek upar):
+  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
+    <h3 className="font-bold text-slate-800 mb-1">Edit Profile Info</h3>
+    <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
+    <div className="flex gap-2 mt-2">
+      <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="w-full px-4 py-2 border rounded-lg text-sm" />
+      <button onClick={handleUpdateName} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Update</button>
+    </div>
+  </div>
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
@@ -244,38 +263,105 @@ export default function DashboardPage() {
     setIsEditingJournal(false); // Default view mode
   };
 
+  const toggleChecklist = (item: string) => {
+    const currentList = journalFormData.execution_checklist || [];
+    const updatedList = currentList.includes(item)
+      ? currentList.filter((i: string) => i !== item)
+      : [...currentList, item];
+
+    setJournalFormData({ ...journalFormData, execution_checklist: updatedList });
+  };
+
   const handleUpdateJournal = async () => {
     if (!selectedTrade) return;
-    
-    // Supabase me data update karna
+    // Supabase me naye aur purane dono data ko update karna
     const { error } = await supabase
       .from('user_journal')
       .update({
+        // Purani fields
         setup_notes: journalFormData.setup_notes,
-        mistake: journalFormData.mistake,
-        exit_price: Number(journalFormData.exit_price),
-        risk_reward: Number(journalFormData.risk_reward)
+        exit_price: journalFormData.exit_price ? Number(journalFormData.exit_price) : null,
+        risk_reward: journalFormData.risk_reward ? Number(journalFormData.risk_reward) : null,
+        
+        // Video UI wali fields
+        post_trade_notes: journalFormData.post_trade_notes,
+        emotions: journalFormData.emotions,
+        lessons: journalFormData.lessons,
+        tags: journalFormData.tags,
+        rating: journalFormData.rating ? Number(journalFormData.rating) : 5,
+        execution_checklist: journalFormData.execution_checklist || [],
+        
+        // Nayi Bug 9 wali fields
+        mistake_made: journalFormData.mistake_made,
+        worked_well: journalFormData.worked_well,
+        didnt_work: journalFormData.didnt_work,
+        improve: journalFormData.improve,
+        focus_area: journalFormData.focus_area
       })
       .eq('id', selectedTrade.id);
 
     if (!error) {
-      // Dashboard data refresh karein
+      // Dashboard data refresh karein (taki main list me update dikhe)
       if (userId) fetchTrades(userId);
-      // Naya data set karein
+      
+      // Right tab me selected trade ka UI turant update karne ke liye naya data set karein
       setSelectedTrade({ ...selectedTrade, ...journalFormData });
-      setIsEditingJournal(false);
+      
+      // Agar aapne edit mode toggle use kiya hai toh use band karne ke liye (optional)
+      if (typeof setIsEditingJournal === 'function') {
+        setIsEditingJournal(false);
+      }
+      
+      alert("Journal saved successfully! ✅");
     } else {
       alert("Error updating journal: " + error.message);
     }
   };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/auth');
   };
 
 
-  if (isLoading) return <div className="min-h-screen bg-white flex justify-center items-center text-blue-600"><Activity className="animate-spin w-10 h-10"/></div>;
+  // 🟢 CUSTOM LOGO LOADING SCREEN
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center justify-center gap-4">
+          {/* Logo with smooth pulse animation */}
+          <img 
+            src="/logo3.png" // Agar file ka naam logo3.png rakha tha toh yahan logo3.png kar dein
+            alt="Minitrade Loading..." 
+            className="w-16 h-16 object-contain animate-pulse" 
+          />
+          {/* Optional loading text */}
+          <span className="text-slate-400 text-sm font-bold tracking-widest uppercase animate-pulse">
+            Loading...
+          </span>
+        </div>
+      </div>
+    );
+  }
+  // Time Filter Logic for Performance Tab
+  const getFilteredPerformanceTrades = () => {
+    const now = new Date();
+    return trades.filter(t => {
+      if (!t.trade_date) return true;
+      const tradeDate = new Date(t.trade_date);
+      const diffDays = (now.getTime() - tradeDate.getTime()) / (1000 * 3600 * 24);
+      
+      if (perfTimeFilter === '7 Days') return diffDays <= 7;
+      if (perfTimeFilter === '30 Days') return diffDays <= 30;
+      if (perfTimeFilter === '90 Days') return diffDays <= 90;
+      if (perfTimeFilter === 'This Year') return tradeDate.getFullYear() === now.getFullYear();
+      return true; // All Time
+    });
+  };
+
+  const perfTrades = getFilteredPerformanceTrades();
+  
+  
+  // ... (Apne baki metrics ko trades.filter ki jagah perfTrades.filter kar dein)
   // --- PERFORMANCE TAB CALCULATIONS ---
   const winRateDecimal = stats.winRate / 100;
   const lossRateDecimal = 1 - winRateDecimal;
@@ -305,11 +391,12 @@ export default function DashboardPage() {
       {/* 🟢 SIDEBAR (Responsive Slide-in) */}
       <aside className={`fixed md:static inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-slate-200 flex flex-col h-screen transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 text-white p-1.5 rounded-lg">
-              <LineChart className="w-5 h-5"/>
-            </div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">Minitrade<span className="text-blue-600 font-black">.ai</span></span>
+          <div className="flex items-center">
+            <img 
+              src="/logo3.png" 
+              alt="Minitrade Logo" 
+              className="h-10 w-auto sm:h-9 object-contain" 
+            />
           </div>
           {/* Mobile close button */}
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600">
@@ -405,11 +492,7 @@ export default function DashboardPage() {
                   </h3>
                   <p className="text-xs text-slate-400">{stats.totalTrades} Trades</p>
                 </div>
-                <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
-                  <div className="flex justify-between items-start mb-2"><p className="text-sm font-semibold text-slate-500 uppercase">Unrealized</p></div>
-                  <h3 className="text-3xl font-bold text-slate-800 mb-1">$0.00</h3>
-                  <p className="text-xs text-slate-400">0 open positions</p>
-                </div>
+                
                 <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
                   <div className="flex justify-between items-start mb-2"><p className="text-sm font-semibold text-slate-500 uppercase">Realized</p></div>
                   <h3 className={`text-3xl font-bold mb-1 ${stats.netPnl >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
@@ -628,8 +711,14 @@ export default function DashboardPage() {
               
               {/* Date Filters */}
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {['All Time', 'This Year', '90 Days', '30 Days', '7 Days'].map((f, i) => (
-                  <button key={f} className={`px-4 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${i === 0 ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>{f}</button>
+                {['All Time', 'This Year', '90 Days', '30 Days', '7 Days'].map((f) => (
+                  <button 
+                    key={f} 
+                    onClick={() => setPerfTimeFilter(f)} 
+                    className={`px-4 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${perfTimeFilter === f ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    {f}
+                  </button>
                 ))}
               </div>
 
@@ -791,217 +880,101 @@ export default function DashboardPage() {
           {activeTab === 'journal' && (
             <div className="max-w-[1400px] mx-auto animate-in fade-in duration-300 flex flex-col lg:flex-row h-[calc(100vh-120px)] gap-6 pb-6">
               
-              {/* Left Column: Trade List */}
-              <div className="w-full lg:w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden h-full">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><BookOpen className="w-4 h-4 text-blue-600"/> Trade Journal</h3>
-                  <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold uppercase tracking-wider">{trades.length} Entries</span>
-                </div>
-                <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
-                  {trades.length === 0 ? (
-                    <div className="text-center text-slate-400 mt-10 text-sm">No trades yet</div>
-                  ) : (
-                    trades.map(t => (
-                      <div 
-                        key={t.id} 
-                        onClick={() => handleSelectTrade(t)}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all ${selectedTrade?.id === t.id ? 'bg-blue-50 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}
+              {/* Left Column: Trade List (Hides on Mobile when trade is selected) */}
+              <div className={`w-full lg:w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden h-full ${selectedTrade ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><BookOpen className="w-4 h-4 text-blue-600"/> Trade Journal</h3>
+                  </div>
+                  {/* Journal Filters */}
+                  <div className="flex gap-2 bg-slate-200 p-1 rounded-lg">
+                    {['All', 'Journaled', 'Pending'].map(f => (
+                      <button 
+                        key={f} 
+                        onClick={() => setJournalFilter(f)} 
+                        className={`flex-1 py-1 text-xs font-bold rounded shadow-sm transition-all ${journalFilter === f ? 'bg-white text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                       >
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-800">{t.pair}</span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${t.direction === 'LONG' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{t.direction}</span>
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${t.result === 'WIN' ? 'bg-green-100 text-green-700' : t.result === 'LOSS' ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-700'}`}>{t.result}</span>
-                        </div>
-                        <div className="flex justify-between items-end">
-                          <p className="text-xs text-slate-500 font-medium">{t.trade_date}</p>
-                          <p className={`font-mono font-bold text-sm ${t.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {t.pnl >= 0 ? '+' : ''}${Number(t.pnl).toFixed(2)}
-                          </p>
-                        </div>
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
+                  {trades.filter(t => {
+                    if (journalFilter === 'Pending') return !t.post_trade_notes;
+                    if (journalFilter === 'Journaled') return t.post_trade_notes;
+                    return true;
+                  }).map(t => (
+                    <div 
+                      key={t.id} 
+                      onClick={() => handleSelectTrade(t)}
+                      className="p-4 border border-slate-200 bg-white rounded-xl cursor-pointer hover:border-blue-300"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-slate-800">{t.pair}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${t.post_trade_notes ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {t.post_trade_notes ? 'Journaled' : 'Pending'}
+                        </span>
                       </div>
-                    ))
-                  )}
+                      <p className="text-xs text-slate-500 font-medium">{t.trade_date}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Right Column: Detailed View */}
-              <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden relative">
+              {/* Right Column: Detailed View (Shows on Mobile when trade is selected) */}
+              <div className={`flex-1 bg-slate-50 border border-slate-200 rounded-xl shadow-sm flex-col h-full overflow-hidden relative ${!selectedTrade ? 'hidden lg:flex' : 'flex'}`}>
                 {!selectedTrade ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
                     <BookOpen className="w-16 h-16 text-slate-300 mb-4"/>
-                    <h3 className="text-xl font-bold text-slate-700 mb-2">Select a trade to journal</h3>
-                    <p className="text-slate-500 max-w-sm text-sm">Select a trade from the list to view and edit its detailed analysis.</p>
+                    <h3 className="text-xl font-bold text-slate-700">Select a trade</h3>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col h-full">
-                    
-                    {/* Top Header Bar (Like Video) */}
                     <div className="p-4 border-b border-slate-200 bg-white shrink-0 flex justify-between items-center shadow-sm z-10">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${selectedTrade.direction === 'LONG' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
-                          <h2 className="text-xl font-black text-slate-800">{selectedTrade.pair}</h2>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${selectedTrade.result === 'WIN' ? 'bg-blue-600 text-white' : selectedTrade.result === 'LOSS' ? 'bg-slate-500 text-white' : 'bg-slate-400 text-white'}`}>
-                            {selectedTrade.result === 'WIN' ? 'WINNER' : selectedTrade.result}
-                          </span>
-                        </div>
-                        <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
-                        <div className="hidden md:flex gap-4 text-xs font-medium text-slate-500">
-                          <span className="flex items-center gap-1"><span className="text-slate-400">Dir:</span> {selectedTrade.direction}</span>
-                          <span className="flex items-center gap-1"><span className="text-slate-400">Entry:</span> ${selectedTrade.entry_price}</span>
-                          <span className="flex items-center gap-1"><span className="text-slate-400">Size:</span> {selectedTrade.lot_size}</span>
-                          <span className="flex items-center gap-1"><span className="text-slate-400">Date:</span> {selectedTrade.trade_date}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs flex items-center gap-2 transition-colors">
-                          <Activity className="w-3 h-3"/> Analytics
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setSelectedTrade(null)} className="lg:hidden p-2 bg-slate-100 rounded-lg text-slate-600">
+                           <X className="w-4 h-4"/> {/* Back button for mobile */}
                         </button>
-                        <button onClick={handleUpdateJournal} className="px-6 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-md transition-all">
-                          Save
-                        </button>
+                        <h2 className="text-xl font-black text-slate-800">{selectedTrade.pair}</h2>
                       </div>
+                      <button onClick={handleUpdateJournal} className="px-6 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-md">
+                        Save
+                      </button>
                     </div>
 
-                    {/* Scrollable Journal Content */}
                     <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+                      {/* Old Fields */}
+                      <textarea value={journalFormData.setup_notes || ''} onChange={(e) => setJournalFormData({...journalFormData, setup_notes: e.target.value})} className="w-full min-h-[80px] p-3 border rounded-lg" placeholder="Pre-Trade Analysis..."/>
+                      <textarea value={journalFormData.post_trade_notes || ''} onChange={(e) => setJournalFormData({...journalFormData, post_trade_notes: e.target.value})} className="w-full min-h-[80px] p-3 border rounded-lg" placeholder="Post-Trade Review..."/>
                       
-                      {/* PRE-TRADE ANALYSIS */}
-                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                        <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                          <Target className="w-4 h-4"/> Pre-Trade Analysis
-                        </label>
-                        <textarea 
-                          value={journalFormData.setup_notes || ''} 
-                          onChange={(e) => setJournalFormData({...journalFormData, setup_notes: e.target.value})}
-                          className="w-full min-h-[80px] p-3 bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-lg outline-none text-sm text-slate-700 transition-all resize-none"
-                          placeholder="What did you see? Plan, thesis, levels, risk..."
-                        />
-                      </div>
-
-                      {/* POST-TRADE REVIEW */}
-                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                        <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                          <MessageSquare className="w-4 h-4"/> Post-Trade Review
-                        </label>
-                        <textarea 
-                          value={journalFormData.post_trade_notes || ''} 
-                          onChange={(e) => setJournalFormData({...journalFormData, post_trade_notes: e.target.value})}
-                          className="w-full min-h-[80px] p-3 bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-lg outline-none text-sm text-slate-700 transition-all resize-none"
-                          placeholder="What happened? Execution, slippage, improvements..."
-                        />
-                      </div>
-
-                      {/* 4-Grid Section: R:R, Emotions, Lessons, Tags, Rating */}
+                      {/* NEW FIELDS (Bug 9) */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
-                        {/* Risk : Reward & Emotions */}
-                        <div className="space-y-4">
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
-                            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              <Target className="w-4 h-4"/> Risk : Reward
-                            </label>
-                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                              <span className="font-bold text-slate-400">1</span>
-                              <span className="font-bold text-slate-300">:</span>
+                         <div className="space-y-4">
+                            <textarea value={journalFormData.mistake_made || ''} onChange={(e) => setJournalFormData({...journalFormData, mistake_made: e.target.value})} className="w-full min-h-[80px] p-3 border border-red-200 bg-red-50 focus:bg-white rounded-lg text-sm" placeholder="🚨 Mistake Made..."/>
+                            <textarea value={journalFormData.worked_well || ''} onChange={(e) => setJournalFormData({...journalFormData, worked_well: e.target.value})} className="w-full min-h-[80px] p-3 border border-green-200 bg-green-50 focus:bg-white rounded-lg text-sm" placeholder="✅ What Worked Well..."/>
+                            <textarea value={journalFormData.didnt_work || ''} onChange={(e) => setJournalFormData({...journalFormData, didnt_work: e.target.value})} className="w-full min-h-[80px] p-3 border border-orange-200 bg-orange-50 focus:bg-white rounded-lg text-sm" placeholder="❌ What Didn't Work..."/>
+                         </div>
+                         <div className="space-y-4">
+                            <textarea value={journalFormData.improve || ''} onChange={(e) => setJournalFormData({...journalFormData, improve: e.target.value})} className="w-full min-h-[80px] p-3 border border-blue-200 bg-blue-50 focus:bg-white rounded-lg text-sm" placeholder="📈 What To Improve..."/>
+                            <textarea value={journalFormData.focus_area || ''} onChange={(e) => setJournalFormData({...journalFormData, focus_area: e.target.value})} className="w-full min-h-[80px] p-3 border border-purple-200 bg-purple-50 focus:bg-white rounded-lg text-sm" placeholder="🎯 Focus Area For Next Trade..."/>
+                         </div>
+                      </div>
+
+                      {/* EXECUTION CHECKLIST (Bug 5 Fixed) */}
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Execution Checklist</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                          {['Checked higher timeframe', 'Fits my trading plan', 'Economic calendar checked', 'Risk within limits', 'Key levels identified'].map(item => (
+                            <div key={item} className="flex items-center gap-3 p-3 bg-slate-50 border rounded-lg cursor-pointer" onClick={() => toggleChecklist(item)}>
                               <input 
-                                type="number" 
-                                value={journalFormData.risk_reward || ''} 
-                                onChange={(e) => setJournalFormData({...journalFormData, risk_reward: e.target.value})}
-                                className="w-12 bg-transparent text-center font-bold text-slate-700 outline-none"
-                                placeholder="2"
+                                type="checkbox" 
+                                checked={(journalFormData.execution_checklist || []).includes(item)}
+                                readOnly
+                                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
                               />
-                            </div>
-                          </div>
-
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                              <BrainCircuit className="w-4 h-4"/> Emotions
-                            </label>
-                            <input 
-                              type="text" 
-                              value={journalFormData.emotions || ''} 
-                              onChange={(e) => setJournalFormData({...journalFormData, emotions: e.target.value})}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-lg outline-none text-sm text-slate-700"
-                              placeholder="Calm, anxious, FOMO, confident..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Lessons & Tags */}
-                        <div className="space-y-4">
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                              <BookOpen className="w-4 h-4"/> Lessons Learned
-                            </label>
-                            <input 
-                              type="text" 
-                              value={journalFormData.lessons || ''} 
-                              onChange={(e) => setJournalFormData({...journalFormData, lessons: e.target.value})}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-lg outline-none text-sm text-slate-700"
-                              placeholder="Key takeaways to repeat or avoid..."
-                            />
-                          </div>
-
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                              <Tag className="w-4 h-4"/> Tags
-                            </label>
-                            <input 
-                              type="text" 
-                              value={journalFormData.tags || ''} 
-                              onChange={(e) => setJournalFormData({...journalFormData, tags: e.target.value})}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-lg outline-none text-sm text-slate-700"
-                              placeholder="breakout, trend, news (comma separated)"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* RATING SLIDER */}
-                      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <Star className="w-4 h-4"/> Rating
-                          </label>
-                          <span className="font-black text-slate-700 text-lg">{journalFormData.rating || 5}<span className="text-sm text-slate-400 font-bold">/10</span></span>
-                        </div>
-                        <input 
-                          type="range" 
-                          min="1" 
-                          max="10" 
-                          value={journalFormData.rating || 5} 
-                          onChange={(e) => setJournalFormData({...journalFormData, rating: e.target.value})}
-                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                        />
-                        <div className="flex justify-between text-xs font-bold text-slate-400 mt-2">
-                          <span>1 (Poor)</span>
-                          <span>5 (Average)</span>
-                          <span>10 (Perfect)</span>
-                        </div>
-                      </div>
-
-                      {/* EXECUTION CHECKLIST */}
-                      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <ListTodo className="w-4 h-4"/> Execution Checklist
-                          </label>
-                          <span className="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">0/5</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {[
-                            { id: 'timeframe', label: 'Checked higher timeframe' },
-                            { id: 'plan', label: 'Fits my trading plan' },
-                            { id: 'calendar', label: 'Economic calendar checked' },
-                            { id: 'risk', label: 'Risk within limits' },
-                            { id: 'levels', label: 'Key levels identified' }
-                          ].map(item => (
-                            <div key={item.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-blue-200 transition-colors">
-                              <input type="checkbox" id={`chk-${item.id}`} className="w-4 h-4 accent-blue-600 rounded border-slate-300 cursor-pointer"/>
-                              <label htmlFor={`chk-${item.id}`} className="text-sm font-medium text-slate-700 cursor-pointer flex-1">{item.label}</label>
+                              <span className="text-sm font-medium text-slate-700">{item}</span>
                             </div>
                           ))}
                         </div>
