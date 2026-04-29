@@ -8,7 +8,7 @@ import {
   Clock, CalendarDays, BrainCircuit, LayoutDashboard, 
   BookOpen, LineChart, Search, Bell, User, 
   Circle, DollarSign, Trophy, TrendingUp, 
-  TrendingDown, Save, Menu, Shield, Zap, Sun, Moon, CheckCircle, star
+  TrendingDown, Save, Menu, Shield, Zap, Sun, Moon, CheckCircle, Star
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import AddTradeModal from './AddTradeModal';
