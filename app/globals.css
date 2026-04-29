@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Ye line button click wale Dark Mode ko enable karegi */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
