@@ -5,33 +5,16 @@ import Link from 'next/link';
 import { 
   TrendingUp, Shield, Zap, ArrowRight, BookOpen, 
   BarChart2, Menu, X, Target, BrainCircuit, CheckCircle,
-  Activity, PieChart, Sparkles, Sun, Moon, Crosshair
+  Activity, PieChart, Sparkles, Crosshair, Sun, Moon
 } from 'lucide-react';
 
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLandingLoading, setIsLandingLoading] = useState(true);
   const [scrolled, setScrolled] = useState(false);
-  // 1. Normal state banayein (default light mode yaani false)
+  
+  // 🌙 Local State for Dark Mode
   const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // 2. Page load hote hi browser (localStorage) se theme check karein
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('minitrade-theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-    }
-  }, []);
-
-  // 3. Theme change karne wala function jo browser me data save karega
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    localStorage.setItem('minitrade-theme', newTheme ? 'dark' : 'light');
-  };
-  
-  // Theme State
-  
 
   // Scroll effect for navbar glassmorphism
   useEffect(() => {
@@ -40,19 +23,31 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Pre-loader
+  // Check Local Storage for Theme on Mount
   useEffect(() => {
+    const savedTheme = localStorage.getItem('minitrade-theme');
+    if (savedTheme === 'dark') {
+      setIsDarkMode(true);
+    }
+    // Pre-loader timer
     const timer = setTimeout(() => setIsLandingLoading(false), 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // 🟢 LOADING SCREEN (Adapts to Dark/Light)
+  // Theme Toggle Function
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    localStorage.setItem('minitrade-theme', newTheme ? 'dark' : 'light');
+  };
+
+  // 🟢 CLEAN WHITE LOADING SCREEN (Adapts to Dark Mode)
   if (isLandingLoading) {
     return (
       <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${isDarkMode ? 'bg-[#030712]' : 'bg-white'}`}>
         <div className="relative flex flex-col items-center gap-6">
           <img 
-            src="/icon.png" 
+            src="/icon.png" // Use your square icon or logo3.png here
             alt="Loading Minitrade..." 
             className={`w-24 h-24 object-contain animate-pulse ${isDarkMode ? 'brightness-0 invert' : ''}`} 
           />
@@ -86,13 +81,10 @@ export default function LandingPage() {
 
             <div className="hidden md:flex items-center gap-4">
               {/* Theme Toggle Button */}
-              <button 
-  onClick={toggleTheme} 
-  className="p-2 md:p-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full transition-all shadow-sm"
->
-  {isDarkMode ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
-</button>
-              
+              <button onClick={toggleTheme} className="p-2 md:p-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full transition-all shadow-sm">
+                {isDarkMode ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
+              </button>
+
               <Link href="/auth" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">Sign In</Link>
               <Link href="/auth" className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-2.5 rounded-full font-bold text-sm transition-all hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:scale-105">
                 Launch App
@@ -100,7 +92,7 @@ export default function LandingPage() {
             </div>
 
             <div className="md:hidden flex items-center gap-3 relative z-50">
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-800 dark:text-white">
+              <button onClick={toggleTheme} className="p-2 text-slate-800 dark:text-white">
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 text-slate-800 dark:text-white">
@@ -109,9 +101,12 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Mobile Menu */}
+          {/* Mobile Menu with Close Button */}
           <div className={`fixed top-4 left-4 right-4 bg-white/98 dark:bg-[#0A0A0B]/98 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-3xl p-8 z-[60] transition-all duration-300 origin-top shadow-2xl ${isMobileMenuOpen ? 'scale-100 opacity-100 visible' : 'scale-95 opacity-0 invisible'}`}>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-6 right-6 p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors">
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)} 
+              className="absolute top-6 right-6 p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors"
+            >
               <X className="w-6 h-6" />
             </button>
             <div className="flex flex-col gap-6 mt-8">
@@ -125,7 +120,9 @@ export default function LandingPage() {
         </header>
 
         {/* 🚀 HERO SECTION WITH FLOATING CARDS */}
-        <section className="relative pt-40 md:pt-52 pb-20 px-6 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 z-10 min-h-screen overflow-hidden">
+        {/* Mobile par height issues aur padding fix ki gayi hai */}
+        <section className="relative pt-32 md:pt-52 pb-10 md:pb-20 px-6 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 z-10 md:min-h-screen overflow-hidden">
+          
           {/* Subtle grid background */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] -z-10 transition-colors duration-500"></div>
           
@@ -154,56 +151,60 @@ export default function LandingPage() {
           </div>
 
           {/* Right - Floating Cards Cluster */}
-          <div className="w-full lg:w-1/2 relative h-[500px] hidden md:block perspective-1000 mt-10 lg:mt-0">
+          {/* Centering aur sizing issue fix kar di gayi hai */}
+          <div className="w-full lg:w-1/2 relative h-[400px] sm:h-[450px] md:h-[500px] mt-8 lg:mt-0 flex items-center justify-center perspective-1000">
             
-            {/* Card 1: Main Dashboard (Center) */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-2xl animate-float-medium z-30 transition-colors duration-500">
-               <div className="flex justify-between items-center mb-6">
-                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400"><BarChart2 className="w-5 h-5"/></div>
-                   <div>
-                     <p className="font-bold text-slate-900 dark:text-white text-sm transition-colors">NAS100 Long</p>
-                     <p className="text-xs text-slate-400">10:30 AM EST</p>
+            <div className="relative w-full max-w-[320px] sm:max-w-[420px] md:max-w-[500px] h-[340px] sm:h-[450px] mx-auto">
+              
+              {/* Card 1: Main Dashboard (Center) */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 sm:w-72 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl animate-float-medium z-30 transition-colors duration-500">
+                 <div className="flex justify-between items-center mb-4 sm:mb-5">
+                   <div className="flex items-center gap-2 sm:gap-3">
+                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400"><BarChart2 className="w-4 h-4 sm:w-5 sm:h-5"/></div>
+                     <div>
+                       <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm transition-colors">NAS100 Long</p>
+                       <p className="text-[9px] sm:text-[10px] text-slate-400">10:30 AM EST</p>
+                     </div>
                    </div>
+                   <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold text-xs sm:text-sm transition-colors">+$840.50</span>
                  </div>
-                 <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold transition-colors">+$840.50</span>
-               </div>
-               <div className="space-y-4">
-                 <div className="bg-slate-50 dark:bg-white/5 rounded-lg p-3 border border-slate-100 dark:border-white/5 transition-colors">
-                   <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Emotion Logged</p>
-                   <p className="text-sm text-slate-700 dark:text-white font-medium transition-colors">Calm, Followed Plan 🎯</p>
+                 <div className="space-y-3 sm:space-y-4">
+                   <div className="bg-slate-50 dark:bg-white/5 rounded-lg p-2.5 sm:p-3 border border-slate-100 dark:border-white/5 transition-colors">
+                     <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold mb-1">Emotion Logged</p>
+                     <p className="text-xs sm:text-sm text-slate-700 dark:text-white font-medium transition-colors">Calm, Followed Plan 🎯</p>
+                   </div>
+                   <button className="w-full py-1.5 sm:py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors">View Analysis</button>
                  </div>
-                 <button className="w-full py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors">View Analysis</button>
-               </div>
-            </div>
-
-            {/* Card 2: Win Rate (Top Left) */}
-            <div className="absolute top-[10%] left-[5%] w-48 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-xl animate-float-slow -rotate-6 z-20 transition-colors duration-500">
-              <div className="flex items-center gap-3 mb-3">
-                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400"/>
-                <span className="font-bold text-slate-700 dark:text-white text-sm transition-colors">Win Rate</span>
               </div>
-              <p className="text-4xl font-black text-slate-900 dark:text-white mb-1 transition-colors">68%</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium transition-colors">+5% this week</p>
-            </div>
 
-            {/* Card 3: Execution Checklist (Bottom Right) */}
-            <div className="absolute bottom-[10%] right-[0%] w-56 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-xl animate-float-fast rotate-3 z-40 transition-colors duration-500">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Pre-Trade Checklist</p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400"/><span className="text-xs text-slate-600 dark:text-slate-300 font-medium">15m Trend Aligned</span></div>
-                <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400"/><span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Risk &lt; 1%</span></div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600"></div><span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Wait for candle close</span></div>
+              {/* Card 2: Win Rate (Top Left) */}
+              <div className="absolute top-[0px] sm:top-[20px] left-[-10px] sm:left-[-15px] w-40 sm:w-48 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl animate-float-slow -rotate-6 z-20 transition-colors duration-500">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 dark:text-emerald-400"/>
+                  <span className="font-bold text-slate-700 dark:text-white text-xs sm:text-sm transition-colors">Win Rate</span>
+                </div>
+                <p className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-1 transition-colors">68%</p>
+                <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium transition-colors">+5% this week</p>
               </div>
-            </div>
 
-            {/* Card 4: Expectancy (Top Right) */}
-            <div className="absolute top-[20%] right-[5%] w-40 bg-blue-50/90 dark:bg-blue-600/20 backdrop-blur-xl border border-blue-100 dark:border-blue-500/30 rounded-2xl p-4 shadow-xl animate-float-medium rotate-12 z-10 transition-colors duration-500">
-              <Activity className="w-6 h-6 text-blue-500 dark:text-blue-400 mb-2 transition-colors"/>
-              <p className="text-[10px] text-blue-400 uppercase font-bold">Expectancy</p>
-              <p className="text-xl font-black text-blue-700 dark:text-white transition-colors">+$124</p>
-            </div>
+              {/* Card 3: Execution Checklist (Bottom Right) */}
+              <div className="absolute bottom-[-10px] sm:bottom-[20px] right-[-10px] sm:right-[-15px] w-48 sm:w-56 bg-white/90 dark:bg-[#12141A]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl animate-float-fast rotate-3 z-40 transition-colors duration-500">
+                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Pre-Trade Checklist</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 dark:text-emerald-400"/><span className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 font-medium">15m Trend Aligned</span></div>
+                  <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 dark:text-emerald-400"/><span className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 font-medium">Risk &lt; 1%</span></div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-slate-300 dark:border-slate-600"></div><span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium">Wait for candle close</span></div>
+                </div>
+              </div>
 
+              {/* Card 4: Expectancy (Top Right) */}
+              <div className="absolute top-[40px] sm:top-[60px] right-[-5px] sm:right-[-25px] w-32 sm:w-40 bg-blue-50/90 dark:bg-blue-600/20 backdrop-blur-xl border border-blue-100 dark:border-blue-500/30 rounded-2xl p-3 sm:p-4 shadow-xl animate-float-medium rotate-12 z-10 transition-colors duration-500">
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 dark:text-blue-400 mb-2 transition-colors"/>
+                <p className="text-[9px] sm:text-[10px] text-blue-400 uppercase font-bold">Expectancy</p>
+                <p className="text-lg sm:text-xl font-black text-blue-700 dark:text-white transition-colors">+$124</p>
+              </div>
+
+            </div>
           </div>
         </section>
 
